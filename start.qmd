@@ -1,0 +1,178 @@
+```{python}
+import pandas as pd 
+import numpy as np
+import plotly_express as px
+from lets_plot import *
+
+LetsPlot.setup_html(isolated_frame=True)
+```
+
+```{python}
+# Download the file
+df = pd.read_csv('insurance.csv')
+
+df.head()
+```
+
+## What is the range age of the people in this study?
+
+```{python}
+oldest_age = df['age'].max()  # Find the maximum age
+youngest_age = df['age'].min()  # Find the minimum age
+
+print(f"The oldest person's age is {oldest_age} and the youngest person's age is {youngest_age}.")
+
+```
+
+## What age has the biggest BMI?
+```{python}
+# Group by 'Age' and calculate the mean BMI
+age_bmi_avg = df.groupby('age')['bmi'].mean()
+
+# Find the age with the highest average BMI
+max_bmi_age = age_bmi_avg.idxmax()  # Age with the max average BMI
+max_bmi_value = age_bmi_avg.max()  # The maximum BMI value
+
+print(f"The age with the highest average BMI is {max_bmi_age} with an average BMI of {max_bmi_value:.2f}.")
+
+LetsPlot.setup_html()
+
+# Assuming age_bmi_avg is a DataFrame with 'Age' and 'BMI'
+plot = (ggplot(age_bmi_avg.reset_index(), aes(x='age', y='bmi')) +
+        geom_line() +
+        scale_x_continuous(format='d') +
+        geom_vline(xintercept=64, color='red', size=0.5, linetype='dashed') +
+        ggtitle("Gavin Data"))
+
+plot
+
+```
+
+## What age has the most smokers?
+```{python}
+# Group by 'age' and calculate the proportion of 'yes' values
+age_smoke_proportions = (
+    df.groupby('age')['smoker']
+    .apply(lambda x: (x == 'yes').sum() / len(x))  # Proportion of 'yes'
+)
+
+# Find the age with the highest proportion of smokers
+max_smoke_age = age_smoke_proportions.idxmax()
+max_smoke_value = age_smoke_proportions.max()
+
+print(f"The age with the highest proportion of smokers is {max_smoke_age} with a proportion of {max_smoke_value:.2f}.")
+
+# Display the proportions
+print(age_smoke_proportions)
+
+```
+
+## What is the proportion of smoker by age
+
+```{python}
+
+
+# Map 'yes' to 1 and 'no' to 0 in the 'smoker' column
+df['smoker'] = df['smoker'].map({'yes': 1, 'no': 0})
+
+# Group by 'age' and calculate the proportion of smokers
+age_smoke_avg = df.groupby('age')['smoker'].mean()  # Proportion of smokers
+
+# Find the age with the highest proportion of smokers
+max_smoke_age = age_smoke_avg.idxmax()  # Age with the max proportion of smokers
+max_smoke_value = age_smoke_avg.max()  # The maximum proportion value
+
+print(f"The age with the highest proportion of smokers is {max_smoke_age} with a proportion of {max_smoke_value:.2f}.")
+
+# Prepare the plot
+LetsPlot.setup_html()
+
+# Reset the index for plotting
+plot_data = age_smoke_avg.reset_index()
+plot_data.columns = ['Age', 'Proportion of Smokers']  # Rename columns for clarity
+
+# Create the plot
+plot = (ggplot(plot_data, aes(x='Age', y='Proportion of Smokers')) +
+        geom_line(color='blue', size=1) +
+        geom_vline(xintercept=max_smoke_age, color='red', size=0.5, linetype='dashed') +
+        ggtitle("Proportion of Smokers by Age") +
+        scale_x_continuous(format='d') +
+        scale_y_continuous(format='.2f'))
+
+plot
+
+
+```
+
+## What are averge charges per age?
+```{python}
+# Group by 'Age' and calculate the mean charges
+age_charges_avg = df.groupby('age')['charges'].mean()
+
+# Find the age with the highest average charges
+max_charges_age = age_charges_avg.idxmax()  # Age with the max average charges
+max_charges_value = age_charges_avg.max()  # The maximum charges value
+
+print(f"The age with the highest average charges is {max_charges_age} with an average charges of {max_charges_value:.2f}.")
+
+# Prepare the plot
+LetsPlot.setup_html()
+
+# Reset the index for plotting
+plot_data = age_charges_avg.reset_index()
+plot_data.columns = ['Age', 'Average Charges']  # Rename columns for clarity
+
+# Create the plot
+plot = (ggplot(plot_data, aes(x='Age', y='Average Charges')) +
+        geom_line(color='blue') +
+        scale_x_continuous(format='d') +
+        geom_vline(xintercept=max_charges_age, color='red', size=0.5, linetype='dashed') +
+        ggtitle("Average Charges by Age"))
+
+plot
+
+
+
+
+```
+
+## Using mashine learning predict which ones would high, med, low risk users
+```{python}
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import metrics
+from sklearn.preprocessing import LabelEncoder
+
+# Load dataset
+df = pd.read_csv('insurance.csv')
+
+# Encode categorical columns
+label_encoders = {}
+for col in ['sex', 'smoker', 'region']:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+# Categorize 'charges' into bins (e.g., low, medium, high)
+df['charges_bin'] = pd.qcut(df['charges'], q=3, labels=['low', 'medium', 'high'])
+
+# Define features and target
+X_pred = df.drop(columns=['charges', 'charges_bin'], axis=1)
+y_pred = df['charges_bin']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X_pred, y_pred, test_size=0.34, random_state=76
+)
+
+# Train a Decision Tree Classifier
+clf = DecisionTreeClassifier()
+clf = clf.fit(X_train, y_train)
+
+# Predict
+y_pred = clf.predict(X_test)
+
+# Evaluate the model
+print(metrics.classification_report(y_test, y_pred))
+```
